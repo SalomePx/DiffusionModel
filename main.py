@@ -22,7 +22,7 @@ def get_args():
 
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--epochs', type=int, default=300)
-    parser.add_argument('--batch', type=int, default=16)
+    parser.add_argument('--batch', type=int, default=8)
     parser.add_argument('--n_class', type=int, default=64)
 
     args = parser.parse_args()
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     basedir = 'saved_experiments'
     os.makedirs(basedir, exist_ok=True)
 
-    global_param = {'basedir': basedir, 'dataset': data.name_dataset, 'name_exp': args.name_exp}
+    global_param = {'basedir': basedir, 'dataset': data.name_dataset, 'name_exp': args.name_exp, 'img_size': data.img_size}
     config = Config(args, global_param)
 
     train(args, data)

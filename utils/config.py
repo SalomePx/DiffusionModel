@@ -10,6 +10,7 @@ class Config:
         self.dataset = global_parameters['dataset']
         self.basedir = global_parameters['basedir']
         self.name_exp = global_parameters['name_exp']
+        self.img_size = global_parameters['img_size']
         self.savedir = os.path.join(self.basedir, self.name_exp)
 
         self.dropout = args.dropout

@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from einops import *
+
 
 class EMA:
     def __init__(self, beta):
@@ -35,7 +37,6 @@ class SelfAttention(nn.Module):
     def __init__(self, channels, size):
         super(SelfAttention, self).__init__()
         self.channels = channels
-        self.size = size
         self.mha = nn.MultiheadAttention(channels, 4, batch_first=True)
         self.ln = nn.LayerNorm([channels])
         self.ff_self = nn.Sequential(
@@ -45,16 +46,18 @@ class SelfAttention(nn.Module):
             nn.Linear(channels, channels),
         )
 
+
     def forward(self, x):
-        x = x.view(-1, self.channels, self.size * self.size).swapaxes(1, 2)
+        height, width = x.shape[-1], x.shape[-2]
+        x = rearrange(x, 'b c h w-> b (h w) c')
         x_ln = self.ln(x)
 
         attention_value, _ = self.mha(x_ln, x_ln, x_ln)
         attention_value = attention_value + x
         attention_value = self.ff_self(attention_value) + attention_value
 
-        # TODO : use einops
-        return attention_value.swapaxes(2, 1).view(-1, self.channels, self.size, self.size)
+        attention_value = rearrange(attention_value, 'b (h w) c -> b c h w', h=height, w=width)
+        return attention_value
 
 
 class DoubleConv(nn.Module):
@@ -79,7 +82,7 @@ class DoubleConv(nn.Module):
 
 
 class Down(nn.Module):
-    def __init__(self, in_channels, out_channels, emb_dim=256):
+    def __init__(self, in_channels, out_channels, emb_dim=128):
         super().__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool2d(2),
@@ -96,15 +99,13 @@ class Down(nn.Module):
         )
 
     def forward(self, x, t):
-        print(x.shape)
-        print(t.shape)
         x = self.maxpool_conv(x)
-        emb = self.emb_layer(t)[:, :, None, None].repeat(1, 1, x.shape[-2], x.shape[-1])
+        emb = repeat(self.emb_layer(t), 'b h -> b h w c', w=x.shape[-2], c=x.shape[-1])
         return x + emb
 
 
 class Up(nn.Module):
-    def __init__(self, in_channels, out_channels, emb_dim=256):
+    def __init__(self, in_channels, out_channels, emb_dim=128):
         super().__init__()
 
         self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
@@ -125,16 +126,17 @@ class Up(nn.Module):
         x = self.up(x)
         x = torch.cat([skip_x, x], dim=1)
         x = self.conv(x)
-        emb = self.emb_layer(t)[:, :, None, None].repeat(1, 1, x.shape[-2], x.shape[-1])
+        emb = repeat(self.emb_layer(t), 'b h -> b h w c', w=x.shape[-2], c=x.shape[-1])
         return x + emb
 
 
 class UNet(nn.Module):
-    def __init__(self, c_in=3, c_out=3, time_dim=256, device="cpu"):
+    def __init__(self, c_in=3, c_out=3, time_dim=128, device="cpu"):
         super().__init__()
         self.device = device
         self.time_dim = time_dim
         self.inc = DoubleConv(c_in, 64)
+
         self.down1 = Down(64, 128)
         self.sa1 = SelfAttention(128, 32)
         self.down2 = Down(128, 256)
@@ -191,10 +193,11 @@ class UNet(nn.Module):
 
 
 class UNet_conditional(nn.Module):
-    def __init__(self, c_in=3, c_out=3, time_dim=256, num_classes=None, device="cpu"):
+    def __init__(self, c_in=3, c_out=3, time_dim=128, num_classes=None, device="cpu"):
         super().__init__()
         self.device = device
         self.time_dim = time_dim
+
         self.inc = DoubleConv(c_in, 64)
         self.down1 = Down(64, 128)
         self.sa1 = SelfAttention(128, 32)

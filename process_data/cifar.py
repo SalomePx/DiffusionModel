@@ -11,7 +11,7 @@ class Cifar10:
         test_set = datasets.CIFAR10(root='./process_data', train=False, transform=transform, download=True)
 
         self.batch_size = args.batch
-        self.img_size = 224
+        self.img_size = 64
         self.num_classes = 10
 
         self.name_dataset = 'cifar'
@@ -19,7 +19,7 @@ class Cifar10:
 
     def transform_tensor(self):
         transform = transforms.Compose([
-            transforms.Resize((224, 224)),
+            transforms.Resize((64, 64)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])

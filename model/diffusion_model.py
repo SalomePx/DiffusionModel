@@ -6,7 +6,7 @@ from einops import *
 
 
 class Diffusion:
-    def __init__(self, noise_steps=10, beta_start=1e-4, beta_end=0.02, img_size=224, device="cpu"):
+    def __init__(self, noise_steps=10, beta_start=1e-4, beta_end=0.02, img_size=256, device="cpu"):
         self.noise_steps = noise_steps
         self.beta_start = beta_start
         self.beta_end = beta_end
